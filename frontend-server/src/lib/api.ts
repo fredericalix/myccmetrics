@@ -11,8 +11,8 @@ export async function apiFetch<T>(
   });
 
   if (res.status === 401) {
-    if (typeof window !== "undefined") {
-      window.location.href = `${API_BASE}/auth/login`;
+    if (typeof window !== "undefined" && window.location.pathname !== "/") {
+      window.location.href = "/";
     }
     throw new Error("Unauthorized");
   }

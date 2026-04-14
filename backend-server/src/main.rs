@@ -60,11 +60,11 @@ async fn main() -> anyhow::Result<()> {
             .continuously_delete_expired(Duration::from_secs(3600)),
     );
 
-    // Session layer
+    // Session layer — Secure must always be true for SameSite=None to work
     let session_layer = SessionManagerLayer::new(session_store)
         .with_name("myccmetrics.sid")
         .with_http_only(true)
-        .with_secure(cfg!(not(debug_assertions)))
+        .with_secure(true)
         .with_same_site(SameSite::None)
         .with_expiry(Expiry::OnInactivity(time::Duration::hours(24)));
 
