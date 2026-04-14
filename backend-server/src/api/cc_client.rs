@@ -149,7 +149,11 @@ impl<'a> CcClient<'a> {
             tracing::error!("CC API list applications failed ({}): {}", status, body);
             anyhow::bail!("CC API list applications failed ({}): {}", status, body);
         }
-        Ok(serde_json::from_str(&body)?)
+        tracing::debug!("CC API applications response (first 500 chars): {}", &body[..body.len().min(500)]);
+        serde_json::from_str(&body).map_err(|e| {
+            tracing::error!("Failed to parse applications response: {}. Body: {}", e, &body[..body.len().min(300)]);
+            anyhow::anyhow!("JSON parse error: {}", e)
+        })
     }
 
     pub async fn list_addons(&self, org_id: &str) -> anyhow::Result<Vec<CcAddon>> {
@@ -170,7 +174,11 @@ impl<'a> CcClient<'a> {
             tracing::error!("CC API list addons failed ({}): {}", status, body);
             anyhow::bail!("CC API list addons failed ({}): {}", status, body);
         }
-        Ok(serde_json::from_str(&body)?)
+        tracing::debug!("CC API addons response (first 500 chars): {}", &body[..body.len().min(500)]);
+        serde_json::from_str(&body).map_err(|e| {
+            tracing::error!("Failed to parse addons response: {}. Body: {}", e, &body[..body.len().min(300)]);
+            anyhow::anyhow!("JSON parse error: {}", e)
+        })
     }
 
     pub async fn get_metrics_token(&self, org_id: &str) -> anyhow::Result<String> {
