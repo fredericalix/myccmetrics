@@ -146,6 +146,7 @@ impl<'a> CcClient<'a> {
         let status = resp.status();
         let body = resp.text().await?;
         if !status.is_success() {
+            tracing::error!("CC API list applications failed ({}): {}", status, body);
             anyhow::bail!("CC API list applications failed ({}): {}", status, body);
         }
         Ok(serde_json::from_str(&body)?)
@@ -166,6 +167,7 @@ impl<'a> CcClient<'a> {
         let status = resp.status();
         let body = resp.text().await?;
         if !status.is_success() {
+            tracing::error!("CC API list addons failed ({}): {}", status, body);
             anyhow::bail!("CC API list addons failed ({}): {}", status, body);
         }
         Ok(serde_json::from_str(&body)?)

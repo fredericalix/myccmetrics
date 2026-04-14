@@ -35,11 +35,15 @@ fn build_cc_client<'a>(
     let secret = encryption::decrypt(&user.oauth_secret_enc, &nonce[12..24], &state.config.encryption_key)
         .map_err(|e| AppError::Internal(e))?;
 
+    let token_str = String::from_utf8(token).map_err(|e| AppError::Internal(e.into()))?;
+    let secret_str = String::from_utf8(secret).map_err(|e| AppError::Internal(e.into()))?;
+    tracing::debug!("Decrypted OAuth token: {}, secret length: {}", token_str, secret_str.len());
+
     Ok(CcClient::new(
         &state.http_client,
         &state.config,
-        String::from_utf8(token).map_err(|e| AppError::Internal(e.into()))?,
-        String::from_utf8(secret).map_err(|e| AppError::Internal(e.into()))?,
+        token_str,
+        secret_str,
     ))
 }
 
