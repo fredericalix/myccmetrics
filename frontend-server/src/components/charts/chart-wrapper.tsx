@@ -5,7 +5,10 @@ import { useTheme } from "next-themes";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { EChartsOption } from "echarts";
 
-const ReactECharts = dynamic(() => import("echarts-for-react"), { ssr: false });
+const ReactECharts = dynamic(() => import("echarts-for-react"), {
+  ssr: false,
+  loading: () => <div className="w-full h-[300px] flex items-center justify-center text-muted-foreground text-sm">Loading chart...</div>,
+});
 
 interface ChartWrapperProps {
   option: EChartsOption;
@@ -35,6 +38,7 @@ export function ChartWrapper({
         style={{ height }}
       >
         <p className="text-sm">Failed to load metrics</p>
+        <p className="text-xs mt-1 max-w-xs truncate">{error}</p>
         {onRetry && (
           <button
             onClick={onRetry}
@@ -50,6 +54,7 @@ export function ChartWrapper({
   return (
     <ReactECharts
       option={option}
+      notMerge={true}
       style={{ height, width: "100%" }}
       opts={{ renderer: "canvas" }}
       theme={resolvedTheme === "dark" ? "dark" : undefined}

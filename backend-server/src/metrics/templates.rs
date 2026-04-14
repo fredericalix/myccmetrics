@@ -9,10 +9,17 @@ pub struct WarpScriptParams {
 }
 
 const CPU_TEMPLATE: &str = r#"
-[ '{TOKEN}' '~cpu\.usage_(user|system|iowait)' { 'app_id' '{APP_ID}' } NOW {DURATION} ] FETCH
+[ '{TOKEN}' 'cpu.usage_user' { 'app_id' '{APP_ID}' } NOW {DURATION} ] FETCH
 [ SWAP bucketizer.mean 0 {BUCKET_SPAN} 0 ] BUCKETIZE
 [ SWAP [ 'app_id' ] reducer.mean ] REDUCE
-SORT
+
+[ '{TOKEN}' 'cpu.usage_system' { 'app_id' '{APP_ID}' } NOW {DURATION} ] FETCH
+[ SWAP bucketizer.mean 0 {BUCKET_SPAN} 0 ] BUCKETIZE
+[ SWAP [ 'app_id' ] reducer.mean ] REDUCE
+
+[ '{TOKEN}' 'cpu.usage_iowait' { 'app_id' '{APP_ID}' } NOW {DURATION} ] FETCH
+[ SWAP bucketizer.mean 0 {BUCKET_SPAN} 0 ] BUCKETIZE
+[ SWAP [ 'app_id' ] reducer.mean ] REDUCE
 "#;
 
 const MEMORY_TEMPLATE: &str = r#"
