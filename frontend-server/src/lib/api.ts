@@ -1,11 +1,11 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+// All API calls go through the Next.js rewrite proxy (same origin)
+// No need for cross-origin credentials
 
 export async function apiFetch<T>(
   path: string,
   init?: RequestInit,
 ): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
-    credentials: "include",
+  const res = await fetch(path, {
     headers: { "Content-Type": "application/json" },
     ...init,
   });
@@ -26,9 +26,9 @@ export async function apiFetch<T>(
 }
 
 export function getLoginUrl(): string {
-  return `${API_BASE}/auth/login`;
+  return "/auth/login";
 }
 
 export function getLogoutUrl(): string {
-  return `${API_BASE}/auth/logout`;
+  return "/auth/logout";
 }

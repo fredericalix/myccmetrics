@@ -8,8 +8,6 @@ import {
 } from "@/components/ui/card";
 import { BarChart3, Cpu, HardDrive, Network, MemoryStick } from "lucide-react";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
-
 export default function HomePage() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-b from-background to-muted/30 p-4">
@@ -33,7 +31,7 @@ export default function HomePage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <a href={`${API_BASE}/auth/login`} className="block">
+            <a href="/auth/login" className="block">
               <Button className="w-full" size="lg">
                 Sign in with Clever Cloud
               </Button>
