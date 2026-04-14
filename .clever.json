@@ -1,0 +1,12 @@
+{
+  "apps": [
+    {
+      "app_id": "app_cd4d2a6b-30dc-4d96-b382-0df2d203e3b1",
+      "org_id": "orga_5d2b4f5b-434c-4ee4-927a-db6ebff63b50",
+      "deploy_url": "https://push-n3-par-clevercloud-customers.services.clever-cloud.com/app_cd4d2a6b-30dc-4d96-b382-0df2d203e3b1.git",
+      "git_ssh_url": "git+ssh://git@push-n3-par-clevercloud-customers.services.clever-cloud.com/app_cd4d2a6b-30dc-4d96-b382-0df2d203e3b1.git",
+      "name": "myccmetrics-backend",
+      "alias": "myccmetrics-backend"
+    }
+  ]
+}

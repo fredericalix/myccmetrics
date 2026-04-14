@@ -17,11 +17,7 @@ fn percent_encode(s: &str) -> String {
 }
 
 fn generate_nonce() -> String {
-    use rand::RngCore;
-    let mut bytes = [0u8; 16];
-    rand::thread_rng().fill_bytes(&mut bytes);
-    base64::Engine::encode(&base64::engine::general_purpose::STANDARD, bytes)
-        .replace(['+', '/', '='], "")
+    uuid::Uuid::new_v4().to_string().replace('-', "")
 }
 
 fn generate_timestamp() -> String {
@@ -34,14 +30,15 @@ fn generate_timestamp() -> String {
 
 fn sign_request(
     method: &str,
-    url: &str,
+    base_url: &str,
     params: &BTreeMap<String, String>,
     consumer_secret: &str,
     token_secret: &str,
 ) -> String {
-    // Build parameter string (sorted by key)
+    // Build parameter string (sorted by key, excluding oauth_signature)
     let param_string: String = params
         .iter()
+        .filter(|(k, _)| k.as_str() != "oauth_signature")
         .map(|(k, v)| format!("{}={}", percent_encode(k), percent_encode(v)))
         .collect::<Vec<_>>()
         .join("&");
@@ -50,12 +47,18 @@ fn sign_request(
     let base_string = format!(
         "{}&{}&{}",
         percent_encode(method),
-        percent_encode(url),
+        percent_encode(base_url),
         percent_encode(&param_string)
     );
 
+    tracing::debug!("OAuth base_string: {}", base_string);
+
     // Build signing key
-    let signing_key = format!("{}&{}", percent_encode(consumer_secret), percent_encode(token_secret));
+    let signing_key = format!(
+        "{}&{}",
+        percent_encode(consumer_secret),
+        percent_encode(token_secret)
+    );
 
     // HMAC-SHA1
     let mut mac =
@@ -63,6 +66,14 @@ fn sign_request(
     mac.update(base_string.as_bytes());
     let result = mac.finalize();
     base64::Engine::encode(&base64::engine::general_purpose::STANDARD, result.into_bytes())
+}
+
+fn build_query_string(params: &BTreeMap<String, String>) -> String {
+    params
+        .iter()
+        .map(|(k, v)| format!("{}={}", percent_encode(k), percent_encode(v)))
+        .collect::<Vec<_>>()
+        .join("&")
 }
 
 fn build_authorization_header(params: &BTreeMap<String, String>) -> String {
@@ -75,35 +86,40 @@ fn build_authorization_header(params: &BTreeMap<String, String>) -> String {
 }
 
 /// Step 1: Get a request token from Clever Cloud
+/// Uses the _query variant which accepts OAuth params as query parameters
 pub async fn request_temporary_token(
     config: &Config,
     http_client: &reqwest::Client,
 ) -> anyhow::Result<(String, String)> {
-    let url = format!("{}/v2/oauth/request_token", config.cc_api_base_url);
+    let base_url = format!(
+        "{}/v2/oauth/request_token_query",
+        config.cc_api_base_url
+    );
     let callback_url = config.callback_url();
 
     let mut params = BTreeMap::new();
     params.insert("oauth_callback".to_string(), callback_url);
-    params.insert("oauth_consumer_key".to_string(), config.cc_consumer_key.clone());
+    params.insert(
+        "oauth_consumer_key".to_string(),
+        config.cc_consumer_key.clone(),
+    );
     params.insert("oauth_nonce".to_string(), generate_nonce());
-    params.insert("oauth_signature_method".to_string(), "HMAC-SHA1".to_string());
+    params.insert(
+        "oauth_signature_method".to_string(),
+        "HMAC-SHA1".to_string(),
+    );
     params.insert("oauth_timestamp".to_string(), generate_timestamp());
     params.insert("oauth_version".to_string(), "1.0".to_string());
 
-    let signature = sign_request("POST", &url, &params, &config.cc_consumer_secret, "");
+    let signature = sign_request("POST", &base_url, &params, &config.cc_consumer_secret, "");
     params.insert("oauth_signature".to_string(), signature);
 
-    let auth_header = build_authorization_header(&params);
+    let query_string = build_query_string(&params);
+    let full_url = format!("{}?{}", base_url, query_string);
 
-    tracing::debug!("OAuth request_token URL: {}", url);
-    tracing::debug!("OAuth callback: {}", params.get("oauth_callback").unwrap());
-    tracing::debug!("OAuth Authorization header: {}", auth_header);
+    tracing::debug!("OAuth request_token URL: {}", full_url);
 
-    let resp = http_client
-        .post(&url)
-        .header("Authorization", &auth_header)
-        .send()
-        .await?;
+    let resp = http_client.post(&full_url).send().await?;
 
     let status = resp.status();
     let body = resp.text().await?;
@@ -113,6 +129,8 @@ pub async fn request_temporary_token(
         anyhow::bail!("request_token failed ({}): {}", status, body);
     }
 
+    tracing::debug!("request_token response: {}", body);
+
     // Parse response: oauth_token=xxx&oauth_token_secret=yyy&oauth_callback_confirmed=true
     let parsed: BTreeMap<String, String> = url::form_urlencoded::parse(body.as_bytes())
         .map(|(k, v)| (k.to_string(), v.to_string()))
@@ -120,17 +138,18 @@ pub async fn request_temporary_token(
 
     let token = parsed
         .get("oauth_token")
-        .ok_or_else(|| anyhow::anyhow!("missing oauth_token in response"))?
+        .ok_or_else(|| anyhow::anyhow!("missing oauth_token in response: {}", body))?
         .clone();
     let secret = parsed
         .get("oauth_token_secret")
-        .ok_or_else(|| anyhow::anyhow!("missing oauth_token_secret in response"))?
+        .ok_or_else(|| anyhow::anyhow!("missing oauth_token_secret in response: {}", body))?
         .clone();
 
     Ok((token, secret))
 }
 
 /// Step 3: Exchange request token + verifier for access token
+/// Uses the _query variant
 pub async fn exchange_access_token(
     config: &Config,
     http_client: &reqwest::Client,
@@ -138,34 +157,51 @@ pub async fn exchange_access_token(
     oauth_token_secret: &str,
     oauth_verifier: &str,
 ) -> anyhow::Result<(String, String)> {
-    let url = format!("{}/v2/oauth/access_token", config.cc_api_base_url);
+    let base_url = format!(
+        "{}/v2/oauth/access_token_query",
+        config.cc_api_base_url
+    );
 
     let mut params = BTreeMap::new();
-    params.insert("oauth_consumer_key".to_string(), config.cc_consumer_key.clone());
+    params.insert(
+        "oauth_consumer_key".to_string(),
+        config.cc_consumer_key.clone(),
+    );
     params.insert("oauth_token".to_string(), oauth_token.to_string());
-    params.insert("oauth_signature_method".to_string(), "HMAC-SHA1".to_string());
+    params.insert(
+        "oauth_signature_method".to_string(),
+        "HMAC-SHA1".to_string(),
+    );
     params.insert("oauth_timestamp".to_string(), generate_timestamp());
     params.insert("oauth_nonce".to_string(), generate_nonce());
     params.insert("oauth_version".to_string(), "1.0".to_string());
     params.insert("oauth_verifier".to_string(), oauth_verifier.to_string());
 
-    let signature = sign_request("POST", &url, &params, &config.cc_consumer_secret, oauth_token_secret);
+    let signature = sign_request(
+        "POST",
+        &base_url,
+        &params,
+        &config.cc_consumer_secret,
+        oauth_token_secret,
+    );
     params.insert("oauth_signature".to_string(), signature);
 
-    let auth_header = build_authorization_header(&params);
+    let query_string = build_query_string(&params);
+    let full_url = format!("{}?{}", base_url, query_string);
 
-    let resp = http_client
-        .post(&url)
-        .header("Authorization", &auth_header)
-        .send()
-        .await?;
+    tracing::debug!("OAuth access_token URL: {}", full_url);
+
+    let resp = http_client.post(&full_url).send().await?;
 
     let status = resp.status();
     let body = resp.text().await?;
 
     if !status.is_success() {
+        tracing::error!("access_token failed ({}): {}", status, body);
         anyhow::bail!("access_token failed ({}): {}", status, body);
     }
+
+    tracing::debug!("access_token response: {}", body);
 
     let parsed: BTreeMap<String, String> = url::form_urlencoded::parse(body.as_bytes())
         .map(|(k, v)| (k.to_string(), v.to_string()))
@@ -173,11 +209,11 @@ pub async fn exchange_access_token(
 
     let token = parsed
         .get("oauth_token")
-        .ok_or_else(|| anyhow::anyhow!("missing oauth_token in response"))?
+        .ok_or_else(|| anyhow::anyhow!("missing oauth_token in response: {}", body))?
         .clone();
     let secret = parsed
         .get("oauth_token_secret")
-        .ok_or_else(|| anyhow::anyhow!("missing oauth_token_secret in response"))?
+        .ok_or_else(|| anyhow::anyhow!("missing oauth_token_secret in response: {}", body))?
         .clone();
 
     Ok((token, secret))
@@ -195,7 +231,10 @@ pub fn sign_api_request(
     let mut params = BTreeMap::new();
     params.insert("oauth_consumer_key".to_string(), consumer_key.to_string());
     params.insert("oauth_token".to_string(), access_token.to_string());
-    params.insert("oauth_signature_method".to_string(), "HMAC-SHA1".to_string());
+    params.insert(
+        "oauth_signature_method".to_string(),
+        "HMAC-SHA1".to_string(),
+    );
     params.insert("oauth_timestamp".to_string(), generate_timestamp());
     params.insert("oauth_nonce".to_string(), generate_nonce());
     params.insert("oauth_version".to_string(), "1.0".to_string());
