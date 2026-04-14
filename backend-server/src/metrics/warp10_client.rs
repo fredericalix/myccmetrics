@@ -38,6 +38,7 @@ pub async fn execute_warpscript(
     let body = resp.text().await?;
 
     if !status.is_success() {
+        tracing::error!("Warp10 exec failed ({}): {}", status, &body[..body.len().min(500)]);
         anyhow::bail!("Warp10 exec failed ({}): {}", status, body);
     }
 

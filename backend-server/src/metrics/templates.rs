@@ -24,34 +24,20 @@ SORT
 
 const NETWORK_TEMPLATE: &str = r#"
 [ '{TOKEN}' 'net.bytes_recv' { 'app_id' '{APP_ID}' } NOW {DURATION} ] FETCH
-SORT
 [ SWAP mapper.rate 1 0 0 ] MAP
-<%
-  DROP
-  DUP VALUES
-  <% 0 < %> <% DROP 0 %> IFT
-%> LMAP
-FLATTEN
+[ SWAP bucketizer.mean 0 {BUCKET_SPAN} 0 ] BUCKETIZE
+[ SWAP [ 'app_id' ] reducer.sum ] REDUCE
+SORT
 'net_recv' STORE
 
 [ '{TOKEN}' 'net.bytes_sent' { 'app_id' '{APP_ID}' } NOW {DURATION} ] FETCH
-SORT
 [ SWAP mapper.rate 1 0 0 ] MAP
-<%
-  DROP
-  DUP VALUES
-  <% 0 < %> <% DROP 0 %> IFT
-%> LMAP
-FLATTEN
+[ SWAP bucketizer.mean 0 {BUCKET_SPAN} 0 ] BUCKETIZE
+[ SWAP [ 'app_id' ] reducer.sum ] REDUCE
+SORT
 'net_sent' STORE
 
-$net_recv
-[ SWAP bucketizer.mean 0 {BUCKET_SPAN} 0 ] BUCKETIZE
-[ SWAP [ 'app_id' ] reducer.sum ] REDUCE
-
-$net_sent
-[ SWAP bucketizer.mean 0 {BUCKET_SPAN} 0 ] BUCKETIZE
-[ SWAP [ 'app_id' ] reducer.sum ] REDUCE
+$net_recv $net_sent
 "#;
 
 const DISK_TEMPLATE: &str = r#"
