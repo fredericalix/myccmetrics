@@ -9,7 +9,7 @@ pub struct WarpScriptParams {
 }
 
 const CPU_TEMPLATE: &str = r#"
-[ '{TOKEN}' '~cpu\.(user|system|iowait)' { 'app_id' '{APP_ID}' } NOW {DURATION} ] FETCH
+[ '{TOKEN}' '~cpu\.usage_(user|system|iowait)' { 'app_id' '{APP_ID}' } NOW {DURATION} ] FETCH
 [ SWAP bucketizer.mean 0 {BUCKET_SPAN} 0 ] BUCKETIZE
 [ SWAP [ 'app_id' ] reducer.mean ] REDUCE
 SORT
