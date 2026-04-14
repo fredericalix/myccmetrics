@@ -44,7 +44,7 @@ async fn login(State(state): State<AppState>) -> Result<Response, AppError> {
 
     // Set the oauth_state cookie and redirect
     let cookie = format!(
-        "oauth_state={}; Path=/auth; HttpOnly; Secure; SameSite=Lax; Max-Age=300",
+        "oauth_state={}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=300",
         cookie_b64
     );
 
@@ -167,7 +167,7 @@ async fn callback(
         .map_err(|e| AppError::Internal(anyhow::anyhow!("session insert failed: {e}")))?;
 
     // Clear the oauth_state cookie and redirect to frontend
-    let clear_cookie = "oauth_state=; Path=/auth; HttpOnly; Secure; SameSite=Lax; Max-Age=0";
+    let clear_cookie = "oauth_state=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0";
     let redirect_url = format!("{}/dashboard", state.config.frontend_url);
 
     Ok((
