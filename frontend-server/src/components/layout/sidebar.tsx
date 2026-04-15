@@ -12,6 +12,7 @@ import {
   Database,
   ChevronDown,
   ChevronRight,
+  BookOpen,
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -31,6 +32,8 @@ export function Sidebar() {
     );
   }
 
+  const pathname = usePathname();
+
   return (
     <nav className="space-y-6 px-4 pb-8">
       {orgs?.map((org) => (
@@ -41,6 +44,21 @@ export function Sidebar() {
           No organisations found
         </p>
       )}
+
+      <div className="border-t border-border pt-4">
+        <Link
+          href="/dashboard/docs"
+          className={cn(
+            "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors hover:bg-accent",
+            pathname === "/dashboard/docs"
+              ? "bg-primary/10 text-primary font-medium"
+              : "text-muted-foreground",
+          )}
+        >
+          <BookOpen className="h-4 w-4 shrink-0" />
+          <span>Documentation</span>
+        </Link>
+      </div>
     </nav>
   );
 }
