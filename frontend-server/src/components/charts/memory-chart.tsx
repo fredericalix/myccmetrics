@@ -14,9 +14,10 @@ interface MemoryChartProps {
   orgId: string;
   appId: string;
   duration: string;
+  refetchInterval?: number;
 }
 
-export function MemoryChart({ orgId, appId, duration }: MemoryChartProps) {
+export function MemoryChart({ orgId, appId, duration, refetchInterval = 60_000 }: MemoryChartProps) {
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
   const { data, isLoading, error, refetch } = useMetrics(
@@ -24,6 +25,8 @@ export function MemoryChart({ orgId, appId, duration }: MemoryChartProps) {
     appId,
     "memory",
     duration,
+    true,
+    refetchInterval,
   );
 
   const option = useMemo<EChartsOption>(() => {

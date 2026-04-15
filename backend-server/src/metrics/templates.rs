@@ -91,7 +91,12 @@ pub fn parse_duration(input: &str) -> Option<String> {
 /// e.g. "1m" -> "60000000", "5m" -> "300000000", "1h" -> "3600000000"
 pub fn parse_bucket_span(input: &str) -> Option<String> {
     let input = input.trim().to_lowercase();
-    if let Some(minutes) = input.strip_suffix('m') {
+    if let Some(seconds) = input.strip_suffix('s') {
+        seconds
+            .parse::<u64>()
+            .ok()
+            .map(|s| (s * 1_000_000).to_string())
+    } else if let Some(minutes) = input.strip_suffix('m') {
         minutes
             .parse::<u64>()
             .ok()
@@ -109,6 +114,8 @@ pub fn parse_bucket_span(input: &str) -> Option<String> {
 /// Return a sensible default bucket span for a given duration
 pub fn default_bucket_for_duration(duration: &str) -> &str {
     match duration {
+        "5m" => "10s",
+        "15m" => "10s",
         "1h" => "1m",
         "6h" => "5m",
         "24h" => "15m",

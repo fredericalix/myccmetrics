@@ -14,9 +14,10 @@ interface CpuChartProps {
   orgId: string;
   appId: string;
   duration: string;
+  refetchInterval?: number;
 }
 
-export function CpuChart({ orgId, appId, duration }: CpuChartProps) {
+export function CpuChart({ orgId, appId, duration, refetchInterval = 60_000 }: CpuChartProps) {
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
   const { data, isLoading, error, refetch } = useMetrics(
@@ -24,6 +25,8 @@ export function CpuChart({ orgId, appId, duration }: CpuChartProps) {
     appId,
     "cpu",
     duration,
+    true,
+    refetchInterval,
   );
 
   const option = useMemo<EChartsOption>(() => {

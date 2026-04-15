@@ -14,9 +14,10 @@ interface DiskChartProps {
   orgId: string;
   appId: string;
   duration: string;
+  refetchInterval?: number;
 }
 
-export function DiskChart({ orgId, appId, duration }: DiskChartProps) {
+export function DiskChart({ orgId, appId, duration, refetchInterval = 60_000 }: DiskChartProps) {
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
   const { data, isLoading, error, refetch } = useMetrics(
@@ -24,6 +25,8 @@ export function DiskChart({ orgId, appId, duration }: DiskChartProps) {
     appId,
     "disk",
     duration,
+    true,
+    refetchInterval,
   );
 
   const option = useMemo<EChartsOption>(() => {

@@ -14,9 +14,10 @@ interface NetworkChartProps {
   orgId: string;
   appId: string;
   duration: string;
+  refetchInterval?: number;
 }
 
-export function NetworkChart({ orgId, appId, duration }: NetworkChartProps) {
+export function NetworkChart({ orgId, appId, duration, refetchInterval = 60_000 }: NetworkChartProps) {
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
   const { data, isLoading, error, refetch } = useMetrics(
@@ -24,6 +25,8 @@ export function NetworkChart({ orgId, appId, duration }: NetworkChartProps) {
     appId,
     "network",
     duration,
+    true,
+    refetchInterval,
   );
 
   const option = useMemo<EChartsOption>(() => {

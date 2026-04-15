@@ -10,6 +10,7 @@ export function useMetrics(
   panel: string,
   duration: string,
   enabled = true,
+  refetchInterval = 60_000,
 ) {
   return useQuery<MetricsResponse>({
     queryKey: ["metrics", orgId, appId, panel, duration],
@@ -18,7 +19,7 @@ export function useMetrics(
         `/api/metrics/${orgId}/${appId}?panel=${panel}&duration=${duration}`,
       ),
     enabled: enabled && !!orgId && !!appId,
-    refetchInterval: 60_000,
-    staleTime: 30_000,
+    refetchInterval,
+    staleTime: Math.min(refetchInterval / 2, 30_000),
   });
 }
