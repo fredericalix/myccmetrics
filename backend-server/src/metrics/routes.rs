@@ -149,8 +149,7 @@ async fn debug_find_metrics(
 
     // FIND all metric classes for this resource via app_id label
     let script = format!(
-        "[ '{}' '~.*' {{ 'app_id' '{}' }} ] FIND \
-         <% DROP CLONEEMPTY %> LMAP UNIQUE",
+        "[ '{}' '~.*' {{ 'app_id' '{}' }} ] FIND SIZE",
         warp10_token, resource_id,
     );
 
