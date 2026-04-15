@@ -10,47 +10,45 @@ pub struct WarpScriptParams {
 
 const CPU_TEMPLATE: &str = r#"
 [ '{TOKEN}' 'cpu.usage_user' { 'app_id' '{APP_ID}' } NOW {DURATION} ] FETCH
-[ SWAP bucketizer.mean 0 {BUCKET_SPAN} 0 ] BUCKETIZE
-[ SWAP [ 'app_id' ] reducer.mean ] REDUCE
+'f' STORE [ $f bucketizer.mean 0 {BUCKET_SPAN} 0 ] BUCKETIZE
+'b' STORE [ $b [ 'app_id' ] reducer.mean ] REDUCE
 
 [ '{TOKEN}' 'cpu.usage_system' { 'app_id' '{APP_ID}' } NOW {DURATION} ] FETCH
-[ SWAP bucketizer.mean 0 {BUCKET_SPAN} 0 ] BUCKETIZE
-[ SWAP [ 'app_id' ] reducer.mean ] REDUCE
+'f' STORE [ $f bucketizer.mean 0 {BUCKET_SPAN} 0 ] BUCKETIZE
+'b' STORE [ $b [ 'app_id' ] reducer.mean ] REDUCE
 
 [ '{TOKEN}' 'cpu.usage_iowait' { 'app_id' '{APP_ID}' } NOW {DURATION} ] FETCH
-[ SWAP bucketizer.mean 0 {BUCKET_SPAN} 0 ] BUCKETIZE
-[ SWAP [ 'app_id' ] reducer.mean ] REDUCE
+'f' STORE [ $f bucketizer.mean 0 {BUCKET_SPAN} 0 ] BUCKETIZE
+'b' STORE [ $b [ 'app_id' ] reducer.mean ] REDUCE
 "#;
 
 const MEMORY_TEMPLATE: &str = r#"
 [ '{TOKEN}' 'mem.used_percent' { 'app_id' '{APP_ID}' } NOW {DURATION} ] FETCH
-[ SWAP bucketizer.mean 0 {BUCKET_SPAN} 0 ] BUCKETIZE
-[ SWAP [ 'app_id' ] reducer.mean ] REDUCE
+'f' STORE [ $f bucketizer.mean 0 {BUCKET_SPAN} 0 ] BUCKETIZE
+'b' STORE [ $b [ 'app_id' ] reducer.mean ] REDUCE
 SORT
 "#;
 
 const NETWORK_TEMPLATE: &str = r#"
 [ '{TOKEN}' 'net.bytes_recv' { 'app_id' '{APP_ID}' } NOW {DURATION} ] FETCH
-[ SWAP mapper.rate 1 0 0 ] MAP
-[ SWAP bucketizer.mean 0 {BUCKET_SPAN} 0 ] BUCKETIZE
-[ SWAP [ 'app_id' ] reducer.sum ] REDUCE
-SORT
-'net_recv' STORE
+'f' STORE [ $f mapper.rate 1 0 0 ] MAP
+'f' STORE [ $f bucketizer.mean 0 {BUCKET_SPAN} 0 ] BUCKETIZE
+'f' STORE [ $f [ 'app_id' ] reducer.sum ] REDUCE
+SORT 'net_recv' STORE
 
 [ '{TOKEN}' 'net.bytes_sent' { 'app_id' '{APP_ID}' } NOW {DURATION} ] FETCH
-[ SWAP mapper.rate 1 0 0 ] MAP
-[ SWAP bucketizer.mean 0 {BUCKET_SPAN} 0 ] BUCKETIZE
-[ SWAP [ 'app_id' ] reducer.sum ] REDUCE
-SORT
-'net_sent' STORE
+'f' STORE [ $f mapper.rate 1 0 0 ] MAP
+'f' STORE [ $f bucketizer.mean 0 {BUCKET_SPAN} 0 ] BUCKETIZE
+'f' STORE [ $f [ 'app_id' ] reducer.sum ] REDUCE
+SORT 'net_sent' STORE
 
 $net_recv $net_sent
 "#;
 
 const DISK_TEMPLATE: &str = r#"
 [ '{TOKEN}' 'disk.used_percent' { 'app_id' '{APP_ID}' } NOW {DURATION} ] FETCH
-[ SWAP bucketizer.last 0 {BUCKET_SPAN} 0 ] BUCKETIZE
-[ SWAP [ 'app_id' ] reducer.max ] REDUCE
+'f' STORE [ $f bucketizer.last 0 {BUCKET_SPAN} 0 ] BUCKETIZE
+'b' STORE [ $b [ 'app_id' ] reducer.max ] REDUCE
 SORT
 "#;
 
