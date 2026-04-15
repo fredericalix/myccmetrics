@@ -147,9 +147,16 @@ async fn debug_find_metrics(
 ) -> Result<Json<serde_json::Value>, AppError> {
     let warp10_token = get_or_fetch_warp10_token(&state, &user, &org_id).await?;
 
-    // FIND all metric classes for this resource via app_id label
+    // FETCH a tiny window of each metric type to see what exists
     let script = format!(
-        "[ '{}' '~.*' {{ 'app_id' '{}' }} ] FIND SIZE",
+        "[ '{}' '~cpu.*' {{ 'app_id' '{}' }} NOW 5 m ] FETCH SIZE 'cpu_count' STORE \
+         [ '{}' '~mem.*' {{ 'app_id' '{}' }} NOW 5 m ] FETCH SIZE 'mem_count' STORE \
+         [ '{}' '~disk.*' {{ 'app_id' '{}' }} NOW 5 m ] FETCH SIZE 'disk_count' STORE \
+         [ '{}' '~net.*' {{ 'app_id' '{}' }} NOW 5 m ] FETCH SIZE 'net_count' STORE \
+         {{ 'cpu' $cpu_count 'mem' $mem_count 'disk' $disk_count 'net' $net_count }}",
+        warp10_token, resource_id,
+        warp10_token, resource_id,
+        warp10_token, resource_id,
         warp10_token, resource_id,
     );
 
