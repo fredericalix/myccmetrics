@@ -147,14 +147,10 @@ async fn debug_find_metrics(
 ) -> Result<Json<serde_json::Value>, AppError> {
     let warp10_token = get_or_fetch_warp10_token(&state, &user, &org_id).await?;
 
-    // Try FIND with app_id label
+    // FIND all metric classes for this resource via app_id label
     let script = format!(
-        "[ '{}' '~.*' {{ 'app_id' '{}' }} ] FIND SIZE 'by_app_id' STORE\n\
-         [ '{}' '~.*' {{ 'addon_id' '{}' }} ] FIND SIZE 'by_addon_id' STORE\n\
-         [ '{}' '~cpu.*' {{}} ] FIND <% DROP DUP LABELS 'app_id' GET '{}' == %> FILTER SIZE 'cpu_filtered' STORE\n\
-         {{ 'by_app_id' $by_app_id 'by_addon_id' $by_addon_id 'cpu_filtered' $cpu_filtered }} ",
-        warp10_token, resource_id,
-        warp10_token, resource_id,
+        "[ '{}' '~.*' {{ 'app_id' '{}' }} ] FIND \
+         <% DROP CLONEEMPTY %> LMAP UNIQUE",
         warp10_token, resource_id,
     );
 
