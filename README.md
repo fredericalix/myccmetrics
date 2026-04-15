@@ -63,9 +63,10 @@ This is a monorepo deployed as two separate Clever Cloud applications using the 
 In the Clever Cloud console, go to **OAuth Consumers** and create a new consumer:
 
 - **Name:** MyCCmetrics
+- **Homepage URL:** `https://myccmetrics.cleverapps.io`
 - **Base URL:** `https://myccmetrics.cleverapps.io`
-- **Access rights:** Access all
-- **Manage rights:** Manage all
+- **Access rights:** Organisations, Organisations' consumption statistics, Personal information
+- **Manage rights:** Organisations' applications, Organisations' add-ons
 
 ### 2. Backend (Rust runtime)
 
