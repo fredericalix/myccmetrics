@@ -116,23 +116,25 @@ MERGE 'mem.used_percent' RENAME
 
 Network metrics are **cumulative counters** (monotonically increasing). You must compute the rate (bytes/sec).
 
+**CRITICAL:** Compute `mapper.rate` **BEFORE** `MERGE`. If you MERGE first, the counter values from different instances get interleaved, and the rate computation produces massive false spikes (e.g., 140 GB/s instead of 290 KB/s) at instance transitions.
+
 ```warpscript
 [ 'READ_TOKEN' 'net.bytes_recv' { 'app_id' 'app_xxx' } NOW 1 h ] FETCH
-MERGE 'net.bytes_recv' RENAME
 [ SWAP mapper.rate 1 0 0 ] MAP
+MERGE 'net.bytes_recv' RENAME
 [ SWAP bucketizer.mean 0 60000000 0 ] BUCKETIZE
 'net_recv' STORE
 
 [ 'READ_TOKEN' 'net.bytes_sent' { 'app_id' 'app_xxx' } NOW 1 h ] FETCH
-MERGE 'net.bytes_sent' RENAME
 [ SWAP mapper.rate 1 0 0 ] MAP
+MERGE 'net.bytes_sent' RENAME
 [ SWAP bucketizer.mean 0 60000000 0 ] BUCKETIZE
 'net_sent' STORE
 
 $net_recv $net_sent
 ```
 
-`mapper.rate` computes the derivative (value change per second). Counter resets (from redeployments) may produce negative values — filter them out in your application code.
+`mapper.rate` computes the derivative (value change per second) **per instance**. Then `MERGE` combines the rates into a single series. Counter resets may still produce negative values — filter them out in your application code (discard any data point where value < 0).
 
 ### Disk
 
@@ -215,7 +217,7 @@ Warp10 uses microsecond precision. Divide by 1,000 for JavaScript `Date` compati
 
 ### 2. Network Values are Cumulative Counters
 
-`net.bytes_recv` and `net.bytes_sent` are monotonically increasing counters. You **must** compute the rate using `mapper.rate`. Negative rates indicate counter resets (new deployment) — discard or zero them out.
+`net.bytes_recv` and `net.bytes_sent` are monotonically increasing counters. You **must** compute the rate using `mapper.rate`. **Compute the rate per-instance BEFORE merging** — if you MERGE the raw counters first, instance transitions cause the counter to jump by billions, producing rates of 140+ GB/s instead of the real ~290 KB/s. Negative rates indicate counter resets (new deployment) — discard or zero them out in your application code.
 
 ### 3. Use MERGE, not REDUCE, for Multi-Instance Apps
 
@@ -261,6 +263,17 @@ The BUCKETIZE function expects the bucket span in microseconds:
 - 1 minute = `60000000`
 - 5 minutes = `300000000`
 - 1 hour = `3600000000`
+
+### 8. Network Rate: mapper.rate BEFORE MERGE
+
+For network counters, always apply `mapper.rate` on the raw per-instance GTS **before** calling `MERGE`. The order matters:
+
+```
+CORRECT:  FETCH → mapper.rate (per instance) → MERGE → BUCKETIZE
+WRONG:    FETCH → MERGE → mapper.rate → BUCKETIZE
+```
+
+The wrong order merges raw cumulative counter values from different instances. When instance A has counter value 50 billion and instance B starts at 0, the rate computation sees a jump of -50 billion, producing absurd values.
 
 ## Recommended Bucket Spans by Duration
 
