@@ -147,13 +147,17 @@ async fn debug_find_metrics(
 ) -> Result<Json<serde_json::Value>, AppError> {
     let warp10_token = get_or_fetch_warp10_token(&state, &user, &org_id).await?;
 
-    // FETCH a tiny window of each metric type to see what exists
+    // FETCH last 1h of specific metrics to see what exists
     let script = format!(
-        "[ '{}' '~cpu.*' {{ 'app_id' '{}' }} NOW 5 m ] FETCH SIZE 'cpu_count' STORE \
-         [ '{}' '~mem.*' {{ 'app_id' '{}' }} NOW 5 m ] FETCH SIZE 'mem_count' STORE \
-         [ '{}' '~disk.*' {{ 'app_id' '{}' }} NOW 5 m ] FETCH SIZE 'disk_count' STORE \
-         [ '{}' '~net.*' {{ 'app_id' '{}' }} NOW 5 m ] FETCH SIZE 'net_count' STORE \
-         {{ 'cpu' $cpu_count 'mem' $mem_count 'disk' $disk_count 'net' $net_count }}",
+        "[ '{}' 'cpu.usage_user' {{ 'app_id' '{}' }} NOW 1 h ] FETCH SIZE 'cpu_user' STORE \
+         [ '{}' 'cpu.user' {{ 'app_id' '{}' }} NOW 1 h ] FETCH SIZE 'cpu_user_alt' STORE \
+         [ '{}' 'mem.used_percent' {{ 'app_id' '{}' }} NOW 1 h ] FETCH SIZE 'mem' STORE \
+         [ '{}' 'mem.used' {{ 'app_id' '{}' }} NOW 1 h ] FETCH SIZE 'mem_alt' STORE \
+         [ '{}' 'disk.used_percent' {{ 'app_id' '{}' }} NOW 1 h ] FETCH SIZE 'disk' STORE \
+         [ '{}' 'net.bytes_recv' {{ 'app_id' '{}' }} NOW 1 h ] FETCH SIZE 'net' STORE \
+         {{ 'cpu.usage_user' $cpu_user 'cpu.user' $cpu_user_alt 'mem.used_percent' $mem 'mem.used' $mem_alt 'disk.used_percent' $disk 'net.bytes_recv' $net }}",
+        warp10_token, resource_id,
+        warp10_token, resource_id,
         warp10_token, resource_id,
         warp10_token, resource_id,
         warp10_token, resource_id,
