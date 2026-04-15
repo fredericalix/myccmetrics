@@ -1,15 +1,5 @@
 import type { EChartsOption } from "echarts";
 
-export const lightTheme: EChartsOption = {
-  backgroundColor: "transparent",
-  textStyle: { color: "#374151" },
-};
-
-export const darkTheme: EChartsOption = {
-  backgroundColor: "transparent",
-  textStyle: { color: "#d1d5db" },
-};
-
 export const chartColors = {
   cpu: {
     user: "#3b82f6",
@@ -25,8 +15,8 @@ export const chartColors = {
 };
 
 export function buildBaseOption(isDark: boolean): EChartsOption {
-  const textColor = isDark ? "#9ca3af" : "#6b7280";
-  const borderColor = isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)";
+  const textColor = isDark ? "#9ca3af" : "#73738e";
+  const borderColor = isDark ? "#27303e" : "#deddee";
 
   return {
     backgroundColor: "transparent",
@@ -54,9 +44,9 @@ export function buildBaseOption(isDark: boolean): EChartsOption {
     },
     tooltip: {
       trigger: "axis",
-      backgroundColor: isDark ? "#1f2937" : "#ffffff",
-      borderColor: isDark ? "#374151" : "#e5e7eb",
-      textStyle: { color: isDark ? "#e5e7eb" : "#374151", fontSize: 12 },
+      backgroundColor: isDark ? "#122031" : "#ffffff",
+      borderColor: isDark ? "#27303e" : "#deddee",
+      textStyle: { color: isDark ? "#d1d5db" : "#13172e", fontSize: 12 },
     },
     toolbox: {
       right: 12,

@@ -40,7 +40,7 @@ export default function MetricsDashboardPage({
             onClick={() => setLive(!live)}
             className={cn(
               "text-xs gap-1.5",
-              live && "bg-red-600 hover:bg-red-700 text-white shadow-sm",
+              live && "bg-[#a51050] hover:bg-[#8a0d43] text-white shadow-sm",
             )}
           >
             <Radio
@@ -98,7 +98,7 @@ export default function MetricsDashboardPage({
 
       <p className="text-xs text-muted-foreground text-center">
         {live ? (
-          <span className="text-red-500 font-medium">
+          <span className="text-[#a51050] font-medium">
             Live mode — refreshing every 10s (last 15 min)
           </span>
         ) : (

@@ -21,7 +21,7 @@ export function Sidebar() {
 
   if (isLoading) {
     return (
-      <div className="space-y-3 p-4">
+      <div className="space-y-3 px-4">
         <Skeleton className="h-6 w-3/4" />
         <Skeleton className="h-4 w-1/2" />
         <Skeleton className="h-4 w-2/3" />
@@ -32,7 +32,7 @@ export function Sidebar() {
   }
 
   return (
-    <nav className="space-y-1 p-2">
+    <nav className="space-y-6 px-4 pb-8">
       {orgs?.map((org) => (
         <OrgSection key={org.id} orgId={org.id} orgName={org.name} />
       ))}
@@ -56,12 +56,9 @@ function OrgSection({ orgId, orgName }: { orgId: string; orgName: string }) {
     <div>
       <button
         onClick={() => setExpanded(!expanded)}
-        className={cn(
-          "flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-accent",
-          isActive && "bg-accent",
-        )}
+        className="mb-3 flex w-full items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors"
       >
-        <Building2 className="h-4 w-4 shrink-0" />
+        <Building2 className="h-3.5 w-3.5 shrink-0" />
         <span className="truncate flex-1 text-left">{orgName}</span>
         {expanded ? (
           <ChevronDown className="h-3 w-3 shrink-0" />
@@ -71,40 +68,42 @@ function OrgSection({ orgId, orgName }: { orgId: string; orgName: string }) {
       </button>
 
       {expanded && (
-        <div className="ml-4 mt-1 space-y-0.5 border-l pl-2">
+        <div className="space-y-0.5">
           {apps?.map((app) => (
             <Link
               key={app.id}
               href={`/dashboard/${orgId}/${app.id}`}
               className={cn(
-                "flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-accent",
-                pathname === `/dashboard/${orgId}/${app.id}` &&
-                  "bg-accent font-medium",
+                "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors hover:bg-accent",
+                pathname === `/dashboard/${orgId}/${app.id}`
+                  ? "bg-primary/10 text-primary font-medium border-l-2 border-primary"
+                  : "text-foreground/70",
               )}
             >
-              <AppWindow className="h-3.5 w-3.5 shrink-0 text-blue-500" />
+              <AppWindow className="h-4 w-4 shrink-0 text-blue-500" />
               <span className="truncate">{app.name}</span>
             </Link>
           ))}
           {addons?.map((addon) => {
             const addonMetricId = addon.realId || addon.id;
             return (
-            <Link
-              key={addon.id}
-              href={`/dashboard/${orgId}/${addonMetricId}`}
-              className={cn(
-                "flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-accent",
-                pathname === `/dashboard/${orgId}/${addonMetricId}` &&
-                  "bg-accent font-medium",
-              )}
-            >
-              <Database className="h-3.5 w-3.5 shrink-0 text-emerald-500" />
-              <span className="truncate">{addon.name}</span>
-            </Link>
+              <Link
+                key={addon.id}
+                href={`/dashboard/${orgId}/${addonMetricId}`}
+                className={cn(
+                  "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors hover:bg-accent",
+                  pathname === `/dashboard/${orgId}/${addonMetricId}`
+                    ? "bg-primary/10 text-primary font-medium border-l-2 border-primary"
+                    : "text-foreground/70",
+                )}
+              >
+                <Database className="h-4 w-4 shrink-0 text-emerald-500" />
+                <span className="truncate">{addon.name}</span>
+              </Link>
             );
           })}
           {!apps?.length && !addons?.length && (
-            <p className="text-muted-foreground px-2 py-1 text-xs">
+            <p className="text-muted-foreground px-3 py-1 text-xs">
               No resources
             </p>
           )}

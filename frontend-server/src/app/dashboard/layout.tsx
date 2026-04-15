@@ -13,27 +13,36 @@ export default function DashboardLayout({
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <div className="flex h-screen flex-col">
-      <Topbar onMenuClick={() => setSidebarOpen(true)} />
+    <div className="flex h-screen">
+      {/* Desktop sidebar */}
+      <aside className="hidden md:flex w-72 flex-col border-r border-border bg-card overflow-y-auto custom-scrollbar">
+        <div className="px-6 py-8">
+          <h2 className="text-lg font-bold text-foreground">MyCCmetrics</h2>
+          <p className="text-xs text-muted-foreground mt-0.5">Monitoring Dashboard</p>
+        </div>
+        <Sidebar />
+      </aside>
 
-      <div className="flex flex-1 overflow-hidden">
-        {/* Desktop sidebar */}
-        <aside className="hidden md:flex w-64 flex-col border-r bg-sidebar overflow-y-auto">
-          <Sidebar />
-        </aside>
+      {/* Mobile sidebar */}
+      <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
+        <SheetContent side="left" className="w-72 p-0 bg-card">
+          <SheetTitle className="sr-only">Navigation</SheetTitle>
+          <div className="px-6 py-8">
+            <h2 className="text-lg font-bold text-foreground">MyCCmetrics</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">Monitoring Dashboard</p>
+          </div>
+          <div className="overflow-y-auto h-full custom-scrollbar">
+            <Sidebar />
+          </div>
+        </SheetContent>
+      </Sheet>
 
-        {/* Mobile sidebar */}
-        <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
-          <SheetContent side="left" className="w-64 p-0">
-            <SheetTitle className="sr-only">Navigation</SheetTitle>
-            <div className="overflow-y-auto h-full pt-4">
-              <Sidebar />
-            </div>
-          </SheetContent>
-        </Sheet>
-
-        {/* Main content */}
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6">{children}</main>
+      {/* Main area */}
+      <div className="flex flex-1 flex-col overflow-hidden">
+        <Topbar onMenuClick={() => setSidebarOpen(true)} />
+        <main className="flex-1 overflow-y-auto bg-background p-4 md:p-6 2xl:p-10">
+          {children}
+        </main>
       </div>
     </div>
   );
