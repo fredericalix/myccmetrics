@@ -8,14 +8,14 @@ pub struct DataPoint {
 }
 
 /// A normalized metric series for the frontend
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct MetricSeries {
     pub name: String,
     pub data: Vec<Vec<serde_json::Value>>,
 }
 
 /// The response returned to the frontend
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct MetricsResponse {
     pub panel: String,
     pub series: Vec<MetricSeries>,

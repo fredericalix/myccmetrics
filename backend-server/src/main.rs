@@ -85,6 +85,7 @@ async fn main() -> anyhow::Result<()> {
         db,
         http_client,
         config: Arc::new(config.clone()),
+        metrics_cache: Arc::new(tokio::sync::RwLock::new(std::collections::HashMap::new())),
     };
 
     // Build router

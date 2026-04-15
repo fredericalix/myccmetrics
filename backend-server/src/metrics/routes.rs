@@ -35,17 +35,30 @@ fn default_duration() -> String {
     "1h".to_string()
 }
 
+const CACHE_TTL_SECS: u64 = 30;
+
 async fn get_metrics(
     State(state): State<AppState>,
     AuthUser(user): AuthUser,
     Path((org_id, app_id)): Path<(String, String)>,
     Query(query): Query<MetricsQuery>,
 ) -> Result<Json<warp10_client::MetricsResponse>, AppError> {
-    // Get the WarpScript template for this panel
+    // Check in-memory cache first
+    let cache_key = format!("{}:{}:{}:{}", org_id, app_id, query.panel, query.duration);
+    {
+        let cache = state.metrics_cache.read().await;
+        if let Some(cached) = cache.get(&cache_key) {
+            if cached.cached_at.elapsed().as_secs() < CACHE_TTL_SECS {
+                tracing::debug!("Cache hit for {}", cache_key);
+                return Ok(Json(cached.data.clone()));
+            }
+        }
+    }
+
+    // Cache miss — query Warp10
     let template = templates::get_template(&query.panel)
         .ok_or_else(|| AppError::BadRequest(format!("unknown panel: {}", query.panel)))?;
 
-    // Parse duration and bucket span
     let duration = templates::parse_duration(&query.duration)
         .ok_or_else(|| AppError::BadRequest(format!("invalid duration: {}", query.duration)))?;
 
@@ -56,10 +69,8 @@ async fn get_metrics(
     let bucket_span = templates::parse_bucket_span(bucket_input)
         .ok_or_else(|| AppError::BadRequest(format!("invalid bucket_span: {}", bucket_input)))?;
 
-    // Get Warp10 token (from cache or CC API)
     let warp10_token = get_or_fetch_warp10_token(&state, &user, &org_id).await?;
 
-    // Render WarpScript
     let params = templates::WarpScriptParams {
         token: warp10_token,
         app_id,
@@ -70,14 +81,24 @@ async fn get_metrics(
 
     tracing::debug!("Executing WarpScript for panel={}", query.panel);
 
-    // Execute against Warp10
     let raw_response =
         warp10_client::execute_warpscript(&state.http_client, &state.config.warp10_endpoint, &script)
             .await
             .map_err(|e| AppError::Warp10(e.to_string()))?;
 
-    // Parse and normalize the response
     let response = warp10_client::parse_gts_response(&raw_response, &query.panel);
+
+    // Store in cache
+    {
+        let mut cache = state.metrics_cache.write().await;
+        cache.insert(
+            cache_key,
+            crate::state::CachedMetrics {
+                data: response.clone(),
+                cached_at: std::time::Instant::now(),
+            },
+        );
+    }
 
     Ok(Json(response))
 }
