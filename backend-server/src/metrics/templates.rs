@@ -10,46 +10,44 @@ pub struct WarpScriptParams {
 
 const CPU_TEMPLATE: &str = r#"
 [ '{TOKEN}' 'cpu.usage_user' { 'app_id' '{APP_ID}' } NOW {DURATION} ] FETCH
-'f' STORE [ $f bucketizer.mean 0 {BUCKET_SPAN} 0 ] BUCKETIZE
-'b' STORE [ $b [ 'app_id' ] reducer.mean ] REDUCE
+MERGE 'cpu.usage_user' RENAME
+[ SWAP bucketizer.mean 0 {BUCKET_SPAN} 0 ] BUCKETIZE
 
 [ '{TOKEN}' 'cpu.usage_system' { 'app_id' '{APP_ID}' } NOW {DURATION} ] FETCH
-'f' STORE [ $f bucketizer.mean 0 {BUCKET_SPAN} 0 ] BUCKETIZE
-'b' STORE [ $b [ 'app_id' ] reducer.mean ] REDUCE
+MERGE 'cpu.usage_system' RENAME
+[ SWAP bucketizer.mean 0 {BUCKET_SPAN} 0 ] BUCKETIZE
 
 [ '{TOKEN}' 'cpu.usage_iowait' { 'app_id' '{APP_ID}' } NOW {DURATION} ] FETCH
-'f' STORE [ $f bucketizer.mean 0 {BUCKET_SPAN} 0 ] BUCKETIZE
-'b' STORE [ $b [ 'app_id' ] reducer.mean ] REDUCE
+MERGE 'cpu.usage_iowait' RENAME
+[ SWAP bucketizer.mean 0 {BUCKET_SPAN} 0 ] BUCKETIZE
 "#;
 
 const MEMORY_TEMPLATE: &str = r#"
 [ '{TOKEN}' 'mem.used_percent' { 'app_id' '{APP_ID}' } NOW {DURATION} ] FETCH
-'f' STORE [ $f bucketizer.mean 0 {BUCKET_SPAN} 0 ] BUCKETIZE
-'b' STORE [ $b [ 'app_id' ] reducer.mean ] REDUCE
-SORT
+MERGE 'mem.used_percent' RENAME
+[ SWAP bucketizer.mean 0 {BUCKET_SPAN} 0 ] BUCKETIZE
 "#;
 
 const NETWORK_TEMPLATE: &str = r#"
 [ '{TOKEN}' 'net.bytes_recv' { 'app_id' '{APP_ID}' } NOW {DURATION} ] FETCH
-'f' STORE [ $f mapper.rate 1 0 0 ] MAP
-'f' STORE [ $f bucketizer.mean 0 {BUCKET_SPAN} 0 ] BUCKETIZE
-'f' STORE [ $f [ 'app_id' ] reducer.sum ] REDUCE
-SORT 'net_recv' STORE
+MERGE 'net.bytes_recv' RENAME
+[ SWAP mapper.rate 1 0 0 ] MAP
+[ SWAP bucketizer.mean 0 {BUCKET_SPAN} 0 ] BUCKETIZE
+'net_recv' STORE
 
 [ '{TOKEN}' 'net.bytes_sent' { 'app_id' '{APP_ID}' } NOW {DURATION} ] FETCH
-'f' STORE [ $f mapper.rate 1 0 0 ] MAP
-'f' STORE [ $f bucketizer.mean 0 {BUCKET_SPAN} 0 ] BUCKETIZE
-'f' STORE [ $f [ 'app_id' ] reducer.sum ] REDUCE
-SORT 'net_sent' STORE
+MERGE 'net.bytes_sent' RENAME
+[ SWAP mapper.rate 1 0 0 ] MAP
+[ SWAP bucketizer.mean 0 {BUCKET_SPAN} 0 ] BUCKETIZE
+'net_sent' STORE
 
 $net_recv $net_sent
 "#;
 
 const DISK_TEMPLATE: &str = r#"
 [ '{TOKEN}' 'disk.used_percent' { 'app_id' '{APP_ID}' } NOW {DURATION} ] FETCH
-'f' STORE [ $f bucketizer.last 0 {BUCKET_SPAN} 0 ] BUCKETIZE
-'b' STORE [ $b [ 'app_id' ] reducer.max ] REDUCE
-SORT
+MERGE 'disk.used_percent' RENAME
+[ SWAP bucketizer.last 0 {BUCKET_SPAN} 0 ] BUCKETIZE
 "#;
 
 pub fn get_template(panel: &str) -> Option<&'static str> {
@@ -71,7 +69,6 @@ pub fn render(template: &str, params: &WarpScriptParams) -> String {
 }
 
 /// Convert a human-friendly duration to a WarpScript duration expression
-/// e.g. "1h" -> "1 h", "6h" -> "6 h", "24h" -> "24 h", "7d" -> "7 d", "30d" -> "30 d"
 pub fn parse_duration(input: &str) -> Option<String> {
     let input = input.trim().to_lowercase();
     if let Some(hours) = input.strip_suffix('h') {
@@ -86,7 +83,6 @@ pub fn parse_duration(input: &str) -> Option<String> {
 }
 
 /// Convert a human-friendly bucket span to microseconds string
-/// e.g. "1m" -> "60000000", "5m" -> "300000000", "1h" -> "3600000000"
 pub fn parse_bucket_span(input: &str) -> Option<String> {
     let input = input.trim().to_lowercase();
     if let Some(seconds) = input.strip_suffix('s') {
