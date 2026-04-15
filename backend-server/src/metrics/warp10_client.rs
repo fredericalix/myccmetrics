@@ -70,6 +70,18 @@ pub fn parse_gts_response(raw: &serde_json::Value, panel: &str) -> MetricsRespon
         }
     }
 
+    // For network panel, filter out negative values (counter resets)
+    if panel == "network" {
+        for s in &mut series {
+            s.data.retain(|point| {
+                point.get(1)
+                    .and_then(|v| v.as_f64())
+                    .map(|v| v >= 0.0)
+                    .unwrap_or(true)
+            });
+        }
+    }
+
     MetricsResponse {
         panel: panel.to_string(),
         series,

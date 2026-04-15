@@ -30,14 +30,14 @@ MERGE 'mem.used_percent' RENAME
 
 const NETWORK_TEMPLATE: &str = r#"
 [ '{TOKEN}' 'net.bytes_recv' { 'app_id' '{APP_ID}' } NOW {DURATION} ] FETCH
-MERGE 'net.bytes_recv' RENAME
 [ SWAP mapper.rate 1 0 0 ] MAP
+MERGE 'net.bytes_recv' RENAME
 [ SWAP bucketizer.mean 0 {BUCKET_SPAN} 0 ] BUCKETIZE
 'net_recv' STORE
 
 [ '{TOKEN}' 'net.bytes_sent' { 'app_id' '{APP_ID}' } NOW {DURATION} ] FETCH
-MERGE 'net.bytes_sent' RENAME
 [ SWAP mapper.rate 1 0 0 ] MAP
+MERGE 'net.bytes_sent' RENAME
 [ SWAP bucketizer.mean 0 {BUCKET_SPAN} 0 ] BUCKETIZE
 'net_sent' STORE
 
