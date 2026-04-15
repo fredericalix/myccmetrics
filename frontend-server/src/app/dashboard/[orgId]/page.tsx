@@ -107,7 +107,7 @@ export default function OrgDetailPage({
               {addons?.map((addon) => (
                 <Link
                   key={addon.id}
-                  href={`/dashboard/${orgId}/${addon.id}`}
+                  href={`/dashboard/${orgId}/${addon.realId || addon.id}`}
                 >
                   <Card className="transition-colors hover:bg-accent cursor-pointer">
                     <CardHeader className="pb-3">

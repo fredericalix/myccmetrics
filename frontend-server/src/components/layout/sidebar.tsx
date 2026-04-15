@@ -86,20 +86,23 @@ function OrgSection({ orgId, orgName }: { orgId: string; orgName: string }) {
               <span className="truncate">{app.name}</span>
             </Link>
           ))}
-          {addons?.map((addon) => (
+          {addons?.map((addon) => {
+            const addonMetricId = addon.realId || addon.id;
+            return (
             <Link
               key={addon.id}
-              href={`/dashboard/${orgId}/${addon.id}`}
+              href={`/dashboard/${orgId}/${addonMetricId}`}
               className={cn(
                 "flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-accent",
-                pathname === `/dashboard/${orgId}/${addon.id}` &&
+                pathname === `/dashboard/${orgId}/${addonMetricId}` &&
                   "bg-accent font-medium",
               )}
             >
               <Database className="h-3.5 w-3.5 shrink-0 text-emerald-500" />
               <span className="truncate">{addon.name}</span>
             </Link>
-          ))}
+            );
+          })}
           {!apps?.length && !addons?.length && (
             <p className="text-muted-foreground px-2 py-1 text-xs">
               No resources

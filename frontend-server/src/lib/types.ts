@@ -31,10 +31,10 @@ export interface Application {
 export interface Addon {
   id: string;
   name: string;
-  real_id?: string | null;
+  realId?: string | null;
   region?: string | null;
   provider?: { id?: string | null; name?: string | null } | null;
-  creation_date?: number | null;
+  creationDate?: number | null;
 }
 
 export interface MetricSeries {

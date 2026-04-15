@@ -11,10 +11,15 @@ use chrono::{Duration, Utc};
 use serde::Deserialize;
 
 pub fn router() -> Router<AppState> {
-    Router::new().route(
-        "/api/metrics/{orgId}/{appId}",
-        get(get_metrics),
-    )
+    Router::new()
+        .route(
+            "/api/metrics/{orgId}/{appId}",
+            get(get_metrics),
+        )
+        .route(
+            "/api/metrics/debug/{orgId}/{resourceId}",
+            get(debug_find_metrics),
+        )
 }
 
 #[derive(Deserialize)]
@@ -132,4 +137,30 @@ async fn get_or_fetch_warp10_token(
     .await;
 
     Ok(token)
+}
+
+/// Debug endpoint to discover what metrics exist for a given resource
+async fn debug_find_metrics(
+    State(state): State<AppState>,
+    AuthUser(user): AuthUser,
+    Path((org_id, resource_id)): Path<(String, String)>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    let warp10_token = get_or_fetch_warp10_token(&state, &user, &org_id).await?;
+
+    // Try FIND with app_id label
+    let script = format!(
+        "[ '{}' '~.*' {{ 'app_id' '{}' }} ] FIND SIZE 'by_app_id' STORE\n\
+         [ '{}' '~.*' {{ 'addon_id' '{}' }} ] FIND SIZE 'by_addon_id' STORE\n\
+         [ '{}' '~cpu.*' {{}} ] FIND <% DROP DUP LABELS 'app_id' GET '{}' == %> FILTER SIZE 'cpu_filtered' STORE\n\
+         {{ 'by_app_id' $by_app_id 'by_addon_id' $by_addon_id 'cpu_filtered' $cpu_filtered }} ",
+        warp10_token, resource_id,
+        warp10_token, resource_id,
+        warp10_token, resource_id,
+    );
+
+    let raw = warp10_client::execute_warpscript(&state.http_client, &state.config.warp10_endpoint, &script)
+        .await
+        .map_err(|e| AppError::Warp10(e.to_string()))?;
+
+    Ok(Json(raw))
 }
