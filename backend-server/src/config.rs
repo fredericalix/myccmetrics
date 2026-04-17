@@ -10,19 +10,34 @@ pub struct Config {
     pub encryption_key: [u8; 32],
     pub cc_api_base_url: String,
     pub warp10_endpoint: String,
-    pub session_secret: String,
+    pub is_production: bool,
 }
 
 impl Config {
     pub fn from_env() -> anyhow::Result<Self> {
-        let encryption_key_b64 = env::var("ENCRYPTION_KEY")
-            .unwrap_or_else(|_| {
-                // Generate a random key for development
+        let is_production = matches!(
+            env::var("APP_ENV").as_deref(),
+            Ok("production") | Ok("prod")
+        );
+
+        let encryption_key_b64 = match env::var("ENCRYPTION_KEY") {
+            Ok(v) => v,
+            Err(_) => {
+                if is_production {
+                    anyhow::bail!(
+                        "ENCRYPTION_KEY is required when APP_ENV=production; refusing to boot with a volatile random key"
+                    );
+                }
+                // Dev fallback: volatile random key. Stored tokens become unreadable after restart.
                 use base64::Engine;
                 let mut key = [0u8; 32];
                 rand::RngCore::fill_bytes(&mut rand::thread_rng(), &mut key);
+                tracing::warn!(
+                    "ENCRYPTION_KEY not set — generated a random key for this process only (dev mode)"
+                );
                 base64::engine::general_purpose::STANDARD.encode(key)
-            });
+            }
+        };
 
         let key_bytes = base64::Engine::decode(
             &base64::engine::general_purpose::STANDARD,
@@ -32,6 +47,14 @@ impl Config {
             .try_into()
             .map_err(|_| anyhow::anyhow!("ENCRYPTION_KEY must decode to exactly 32 bytes"))?;
 
+        let cc_consumer_key = env::var("CC_OAUTH_CONSUMER_KEY").unwrap_or_default();
+        let cc_consumer_secret = env::var("CC_OAUTH_CONSUMER_SECRET").unwrap_or_default();
+        if is_production && (cc_consumer_key.is_empty() || cc_consumer_secret.is_empty()) {
+            anyhow::bail!(
+                "CC_OAUTH_CONSUMER_KEY and CC_OAUTH_CONSUMER_SECRET are required in production"
+            );
+        }
+
         Ok(Config {
             database_url: env::var("DATABASE_URL")
                 .or_else(|_| env::var("POSTGRESQL_ADDON_URI"))?,
@@ -40,10 +63,8 @@ impl Config {
                 .parse()?,
             frontend_url: env::var("FRONTEND_URL")
                 .unwrap_or_else(|_| "http://localhost:3000".to_string()),
-            cc_consumer_key: env::var("CC_OAUTH_CONSUMER_KEY")
-                .unwrap_or_default(),
-            cc_consumer_secret: env::var("CC_OAUTH_CONSUMER_SECRET")
-                .unwrap_or_default(),
+            cc_consumer_key,
+            cc_consumer_secret,
             encryption_key,
             cc_api_base_url: env::var("CC_API_BASE_URL")
                 .unwrap_or_else(|_| "https://api.clever-cloud.com".to_string()),
@@ -51,8 +72,7 @@ impl Config {
                 "https://c2-warp10-clevercloud-customers.services.clever-cloud.com/api/v0/exec"
                     .to_string()
             }),
-            session_secret: env::var("SESSION_SECRET")
-                .unwrap_or_else(|_| "dev-session-secret-change-in-production".to_string()),
+            is_production,
         })
     }
 

@@ -1,3 +1,4 @@
+use crate::auth::authz::OrgCache;
 use crate::config::Config;
 use crate::metrics::warp10_client::MetricsResponse;
 use sqlx::PgPool;
@@ -19,4 +20,5 @@ pub struct AppState {
     pub http_client: reqwest::Client,
     pub config: Arc<Config>,
     pub metrics_cache: MetricsCache,
+    pub org_cache: OrgCache,
 }

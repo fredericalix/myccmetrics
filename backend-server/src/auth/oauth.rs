@@ -51,8 +51,6 @@ fn sign_request(
         percent_encode(&param_string)
     );
 
-    tracing::debug!("OAuth base_string: {}", base_string);
-
     // Build signing key
     let signing_key = format!(
         "{}&{}",
@@ -117,19 +115,15 @@ pub async fn request_temporary_token(
     let query_string = build_query_string(&params);
     let full_url = format!("{}?{}", base_url, query_string);
 
-    tracing::debug!("OAuth request_token URL: {}", full_url);
-
     let resp = http_client.post(&full_url).send().await?;
 
     let status = resp.status();
     let body = resp.text().await?;
 
     if !status.is_success() {
-        tracing::error!("request_token failed ({}): {}", status, body);
-        anyhow::bail!("request_token failed ({}): {}", status, body);
+        tracing::error!("request_token failed: status={}", status);
+        anyhow::bail!("request_token failed: status={}", status);
     }
-
-    tracing::debug!("request_token response: {}", body);
 
     // Parse response: oauth_token=xxx&oauth_token_secret=yyy&oauth_callback_confirmed=true
     let parsed: BTreeMap<String, String> = url::form_urlencoded::parse(body.as_bytes())
@@ -189,19 +183,15 @@ pub async fn exchange_access_token(
     let query_string = build_query_string(&params);
     let full_url = format!("{}?{}", base_url, query_string);
 
-    tracing::debug!("OAuth access_token URL: {}", full_url);
-
     let resp = http_client.post(&full_url).send().await?;
 
     let status = resp.status();
     let body = resp.text().await?;
 
     if !status.is_success() {
-        tracing::error!("access_token failed ({}): {}", status, body);
-        anyhow::bail!("access_token failed ({}): {}", status, body);
+        tracing::error!("access_token failed: status={}", status);
+        anyhow::bail!("access_token failed: status={}", status);
     }
-
-    tracing::debug!("access_token response: {}", body);
 
     let parsed: BTreeMap<String, String> = url::form_urlencoded::parse(body.as_bytes())
         .map(|(k, v)| (k.to_string(), v.to_string()))

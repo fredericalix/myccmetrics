@@ -6,14 +6,18 @@ mod error;
 mod metrics;
 mod state;
 
-use axum::http::{header, HeaderValue, Method};
+use axum::http::{header, HeaderName, HeaderValue, Method};
 use axum::routing::get;
 use axum::Router;
 use sqlx::postgres::PgPoolOptions;
 use state::AppState;
 use std::sync::Arc;
 use std::time::Duration;
+use tower_governor::{
+    governor::GovernorConfigBuilder, key_extractor::SmartIpKeyExtractor, GovernorLayer,
+};
 use tower_http::cors::CorsLayer;
+use tower_http::set_header::SetResponseHeaderLayer;
 use tower_http::trace::TraceLayer;
 use tower_sessions::cookie::SameSite;
 use tower_sessions::{Expiry, SessionManagerLayer};
@@ -86,6 +90,41 @@ async fn main() -> anyhow::Result<()> {
         http_client,
         config: Arc::new(config.clone()),
         metrics_cache: Arc::new(tokio::sync::RwLock::new(std::collections::HashMap::new())),
+        org_cache: auth::authz::new_org_cache(),
+    };
+
+    // Security response headers
+    let security_headers = tower::ServiceBuilder::new()
+        .layer(SetResponseHeaderLayer::if_not_present(
+            HeaderName::from_static("x-content-type-options"),
+            HeaderValue::from_static("nosniff"),
+        ))
+        .layer(SetResponseHeaderLayer::if_not_present(
+            HeaderName::from_static("x-frame-options"),
+            HeaderValue::from_static("DENY"),
+        ))
+        .layer(SetResponseHeaderLayer::if_not_present(
+            HeaderName::from_static("referrer-policy"),
+            HeaderValue::from_static("strict-origin-when-cross-origin"),
+        ))
+        .layer(SetResponseHeaderLayer::if_not_present(
+            HeaderName::from_static("strict-transport-security"),
+            HeaderValue::from_static("max-age=63072000; includeSubDomains"),
+        ));
+
+    // Rate limiting: 1 req/s with burst 60, keyed on the client IP read from
+    // X-Forwarded-For / Forwarded (required behind the Clever Cloud edge proxy —
+    // without this, all users share the proxy's single IP quota).
+    let governor_conf = Arc::new(
+        GovernorConfigBuilder::default()
+            .per_second(1)
+            .burst_size(60)
+            .key_extractor(SmartIpKeyExtractor)
+            .finish()
+            .expect("valid governor config"),
+    );
+    let governor_limiter = GovernorLayer {
+        config: governor_conf,
     };
 
     // Build router
@@ -94,8 +133,10 @@ async fn main() -> anyhow::Result<()> {
         .merge(auth::routes::router())
         .merge(api::routes::router())
         .merge(metrics::routes::router())
+        .layer(governor_limiter)
         .layer(session_layer)
         .layer(cors)
+        .layer(security_headers)
         .layer(TraceLayer::new_for_http())
         .with_state(app_state);
 

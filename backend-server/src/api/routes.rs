@@ -1,5 +1,4 @@
-use crate::api::cc_client::CcClient;
-use crate::auth::encryption;
+use crate::auth::authz::{cc_client_for_user, require_org_member, validate_cc_id};
 use crate::auth::middleware::AuthUser;
 use crate::db::users::UserInfo;
 use crate::error::AppError;
@@ -16,35 +15,7 @@ pub fn router() -> Router<AppState> {
             "/api/organisations/{orgId}/applications",
             get(list_applications),
         )
-        .route(
-            "/api/organisations/{orgId}/addons",
-            get(list_addons),
-        )
-}
-
-fn build_cc_client<'a>(
-    state: &'a AppState,
-    user: &'a crate::db::users::User,
-) -> Result<CcClient<'a>, AppError> {
-    let nonce = &user.oauth_nonce;
-    if nonce.len() < 24 {
-        return Err(AppError::Internal(anyhow::anyhow!("invalid oauth nonce length")));
-    }
-    let token = encryption::decrypt(&user.oauth_token_enc, &nonce[..12], &state.config.encryption_key)
-        .map_err(|e| AppError::Internal(e))?;
-    let secret = encryption::decrypt(&user.oauth_secret_enc, &nonce[12..24], &state.config.encryption_key)
-        .map_err(|e| AppError::Internal(e))?;
-
-    let token_str = String::from_utf8(token).map_err(|e| AppError::Internal(e.into()))?;
-    let secret_str = String::from_utf8(secret).map_err(|e| AppError::Internal(e.into()))?;
-    tracing::debug!("Decrypted OAuth token: {}, secret length: {}", token_str, secret_str.len());
-
-    Ok(CcClient::new(
-        &state.http_client,
-        &state.config,
-        token_str,
-        secret_str,
-    ))
+        .route("/api/organisations/{orgId}/addons", get(list_addons))
 }
 
 async fn me(AuthUser(user): AuthUser) -> Json<UserInfo> {
@@ -55,8 +26,11 @@ async fn list_organisations(
     State(state): State<AppState>,
     AuthUser(user): AuthUser,
 ) -> Result<Json<serde_json::Value>, AppError> {
-    let client = build_cc_client(&state, &user)?;
-    let orgs = client.list_organisations().await.map_err(|e| AppError::CcApi(e.to_string()))?;
+    let client = cc_client_for_user(&state, &user)?;
+    let orgs = client
+        .list_organisations()
+        .await
+        .map_err(|e| AppError::CcApi(e.to_string()))?;
     Ok(Json(serde_json::to_value(orgs)?))
 }
 
@@ -65,8 +39,13 @@ async fn list_applications(
     AuthUser(user): AuthUser,
     Path(org_id): Path<String>,
 ) -> Result<Json<serde_json::Value>, AppError> {
-    let client = build_cc_client(&state, &user)?;
-    let apps = client.list_applications(&org_id).await.map_err(|e| AppError::CcApi(e.to_string()))?;
+    validate_cc_id(&org_id)?;
+    require_org_member(&state, &user, &org_id).await?;
+    let client = cc_client_for_user(&state, &user)?;
+    let apps = client
+        .list_applications(&org_id)
+        .await
+        .map_err(|e| AppError::CcApi(e.to_string()))?;
     Ok(Json(serde_json::to_value(apps)?))
 }
 
@@ -75,7 +54,12 @@ async fn list_addons(
     AuthUser(user): AuthUser,
     Path(org_id): Path<String>,
 ) -> Result<Json<serde_json::Value>, AppError> {
-    let client = build_cc_client(&state, &user)?;
-    let addons = client.list_addons(&org_id).await.map_err(|e| AppError::CcApi(e.to_string()))?;
+    validate_cc_id(&org_id)?;
+    require_org_member(&state, &user, &org_id).await?;
+    let client = cc_client_for_user(&state, &user)?;
+    let addons = client
+        .list_addons(&org_id)
+        .await
+        .map_err(|e| AppError::CcApi(e.to_string()))?;
     Ok(Json(serde_json::to_value(addons)?))
 }

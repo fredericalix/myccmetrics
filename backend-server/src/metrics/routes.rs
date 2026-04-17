@@ -1,3 +1,4 @@
+use crate::auth::authz::{require_org_member, validate_cc_id};
 use crate::auth::encryption;
 use crate::auth::middleware::AuthUser;
 use crate::db::warp10_tokens;
@@ -11,15 +12,7 @@ use chrono::{Duration, Utc};
 use serde::Deserialize;
 
 pub fn router() -> Router<AppState> {
-    Router::new()
-        .route(
-            "/api/metrics/{orgId}/{appId}",
-            get(get_metrics),
-        )
-        .route(
-            "/api/metrics/debug/{orgId}/{resourceId}",
-            get(debug_find_metrics),
-        )
+    Router::new().route("/api/metrics/{orgId}/{appId}", get(get_metrics))
 }
 
 #[derive(Deserialize)]
@@ -43,6 +36,10 @@ async fn get_metrics(
     Path((org_id, app_id)): Path<(String, String)>,
     Query(query): Query<MetricsQuery>,
 ) -> Result<Json<warp10_client::MetricsResponse>, AppError> {
+    validate_cc_id(&org_id)?;
+    validate_cc_id(&app_id)?;
+    require_org_member(&state, &user, &org_id).await?;
+
     // Check in-memory cache first
     let cache_key = format!("{}:{}:{}:{}", org_id, app_id, query.panel, query.duration);
     {
@@ -160,34 +157,3 @@ async fn get_or_fetch_warp10_token(
     Ok(token)
 }
 
-/// Debug endpoint to discover what metrics exist for a given resource
-async fn debug_find_metrics(
-    State(state): State<AppState>,
-    AuthUser(user): AuthUser,
-    Path((org_id, resource_id)): Path<(String, String)>,
-) -> Result<Json<serde_json::Value>, AppError> {
-    let warp10_token = get_or_fetch_warp10_token(&state, &user, &org_id).await?;
-
-    // FETCH last 1h of specific metrics to see what exists
-    let script = format!(
-        "[ '{}' 'cpu.usage_user' {{ 'app_id' '{}' }} NOW 1 h ] FETCH SIZE 'cpu_user' STORE \
-         [ '{}' 'cpu.user' {{ 'app_id' '{}' }} NOW 1 h ] FETCH SIZE 'cpu_user_alt' STORE \
-         [ '{}' 'mem.used_percent' {{ 'app_id' '{}' }} NOW 1 h ] FETCH SIZE 'mem' STORE \
-         [ '{}' 'mem.used' {{ 'app_id' '{}' }} NOW 1 h ] FETCH SIZE 'mem_alt' STORE \
-         [ '{}' 'disk.used_percent' {{ 'app_id' '{}' }} NOW 1 h ] FETCH SIZE 'disk' STORE \
-         [ '{}' 'net.bytes_recv' {{ 'app_id' '{}' }} NOW 1 h ] FETCH SIZE 'net' STORE \
-         {{ 'cpu.usage_user' $cpu_user 'cpu.user' $cpu_user_alt 'mem.used_percent' $mem 'mem.used' $mem_alt 'disk.used_percent' $disk 'net.bytes_recv' $net }}",
-        warp10_token, resource_id,
-        warp10_token, resource_id,
-        warp10_token, resource_id,
-        warp10_token, resource_id,
-        warp10_token, resource_id,
-        warp10_token, resource_id,
-    );
-
-    let raw = warp10_client::execute_warpscript(&state.http_client, &state.config.warp10_endpoint, &script)
-        .await
-        .map_err(|e| AppError::Warp10(e.to_string()))?;
-
-    Ok(Json(raw))
-}
