@@ -182,6 +182,14 @@ If you switch to a longer time range (e.g., 6h or 24h), you should see data from
 - Make sure third-party cookies are not blocked in your browser settings
 - Try using a private/incognito window
 
+### "Too many requests" (HTTP 429)
+
+MyCCmetrics rate-limits API traffic to 1 request/second sustained with a burst of 60 per client IP. If you see a 429 or charts stop refreshing, wait a minute and reload. Shared IPs (corporate NAT, VPN) can hit the limit collectively.
+
+### "Forbidden" when opening an organisation or app
+
+The backend rejects any request for a resource whose organisation you are not a member of. If you have just been added to an organisation on Clever Cloud, sign out and back in to refresh your membership — the backend caches your org list for 5 minutes.
+
 ## Keyboard Shortcuts
 
 | Shortcut | Action |

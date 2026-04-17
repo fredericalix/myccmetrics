@@ -287,6 +287,12 @@ The wrong order merges raw cumulative counter values from different instances. W
 | 7 days | 1 hour | 168 |
 | 30 days | 4 hours | 180 |
 
+## Security Notes
+
+The WarpScript templates in `backend-server/src/metrics/templates.rs` interpolate `{TOKEN}`, `{APP_ID}`, `{DURATION}` and `{BUCKET_SPAN}` via string substitution. `DURATION` and `BUCKET_SPAN` come from a whitelisted parser (`parse_duration` / `parse_bucket_span`), and `APP_ID` / `ORG_ID` are validated against `^[a-zA-Z0-9_-]{1,128}$` by `validate_cc_id` before reaching the template — without this, a path parameter like `app_xxx' } FETCH DROP [ '…` would break out of the WarpScript string literal and inject arbitrary code.
+
+The `/api/metrics/debug/{orgId}/{resourceId}` endpoint that once streamed raw Warp10 JSON has been removed; discovery now has to go through the typed `get_metrics` path. See [SECURITY.md](./SECURITY.md) for the full security posture and rotation procedures.
+
 ## WarpScript Reference
 
 - FETCH: https://www.warp10.io/doc/FETCH
