@@ -65,6 +65,9 @@ async fn get_metrics(
         .unwrap_or_else(|| templates::default_bucket_for_duration(&query.duration));
     let bucket_span = templates::parse_bucket_span(bucket_input)
         .ok_or_else(|| AppError::BadRequest(format!("invalid bucket_span: {}", bucket_input)))?;
+    let bucket_span_us: i64 = bucket_span
+        .parse()
+        .map_err(|_| AppError::BadRequest(format!("invalid bucket_span: {}", bucket_input)))?;
 
     let warp10_token = get_or_fetch_warp10_token(&state, &user, &org_id).await?;
 
@@ -83,7 +86,7 @@ async fn get_metrics(
             .await
             .map_err(|e| AppError::Warp10(e.to_string()))?;
 
-    let response = warp10_client::parse_gts_response(&raw_response, &query.panel);
+    let response = warp10_client::parse_gts_response(&raw_response, &query.panel, bucket_span_us);
 
     // Store in cache
     {

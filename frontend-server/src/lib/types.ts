@@ -39,7 +39,7 @@ export interface Addon {
 
 export interface MetricSeries {
   name: string;
-  data: [number, number][];
+  data: [number, number | null][];
 }
 
 export interface MetricsResponse {
