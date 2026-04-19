@@ -91,10 +91,16 @@ pub fn parse_gts_response(
         }
     }
 
-    let bucket_span_ms = bucket_span_us / 1000;
-    let now_ms = current_time_ms();
-    for s in &mut series {
-        s.data = insert_gap_nulls(&s.data, bucket_span_ms, now_ms);
+    // Disk usage is a slowly-varying gauge (% used): datapoints are sparse and
+    // irregular even on a live app, so gap insertion would shred the series.
+    // Activity metrics (cpu/memory/network) only produce data while the app is
+    // up, so they benefit from explicit null gaps.
+    if panel != "disk" {
+        let bucket_span_ms = bucket_span_us / 1000;
+        let now_ms = current_time_ms();
+        for s in &mut series {
+            s.data = insert_gap_nulls(&s.data, bucket_span_ms, now_ms);
+        }
     }
 
     MetricsResponse {
