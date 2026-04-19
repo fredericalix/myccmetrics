@@ -1,4 +1,7 @@
-export function formatBytes(bytes: number, decimals = 1): string {
+const NO_DATA = "—";
+
+export function formatBytes(bytes: number | null | undefined, decimals = 1): string {
+  if (bytes == null) return NO_DATA;
   if (bytes === 0) return "0 B";
   const k = 1024;
   const sizes = ["B", "KB", "MB", "GB", "TB"];
@@ -7,11 +10,13 @@ export function formatBytes(bytes: number, decimals = 1): string {
   return `${(bytes / Math.pow(k, idx)).toFixed(decimals)} ${sizes[idx]}`;
 }
 
-export function formatBytesPerSec(bytesPerSec: number, decimals = 1): string {
+export function formatBytesPerSec(bytesPerSec: number | null | undefined, decimals = 1): string {
+  if (bytesPerSec == null) return NO_DATA;
   return `${formatBytes(bytesPerSec, decimals)}/s`;
 }
 
-export function formatPercent(value: number, decimals = 1): string {
+export function formatPercent(value: number | null | undefined, decimals = 1): string {
+  if (value == null) return NO_DATA;
   return `${value.toFixed(decimals)}%`;
 }
 
